@@ -1,0 +1,109 @@
+<!--
+   
+   Copyright (c) 2020, the Regular Table Authors.
+   
+   This file is part of the Regular Table library, distributed under the terms of
+   the Apache License 2.0.  The full license can be found in the LICENSE file.
+
+-->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <script src="../dist/umd/regular-table.js"></script>
+    <link rel='stylesheet' href="../dist/css/material.css">
+    <style>
+        .smCol {
+            min-width: 50px !important;
+            max-width: 50px !important;
+        }
+        .mdCol {
+            min-width: 75px !important;
+            max-width: 75px !important;
+        }
+        .lgCol {
+            min-width: 100px !important;
+            max-width: 100px !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <regular-table></regular-table>
+
+    <script>
+        const fillIdx = (name) =>
+            Array.from(Array(2000).keys()).map(x => `${name} ${x}`)
+
+        const columns = {
+            "Small Column": fillIdx("small"),
+            "Medium Column": fillIdx("medium"),
+            "Large Column": fillIdx("large"),
+            "Not Set Column": fillIdx("not set")
+        };
+
+        const columnKey = () => {
+            const keys = Object.keys(columns);
+            return [keys[Math.floor(Math.random() * keys.length)]];
+        }
+
+        const COLUMN_COUNT = 20;
+        const COLUMN_NAMES = Array.from(Array(COLUMN_COUNT)).map(_ => columnKey());
+        const INDEXED_COLUMN_NAMES = COLUMN_NAMES.map((column, idx) => [`${column} ${idx}`]);
+        const DATA = COLUMN_NAMES.map(key => columns[key]);
+     
+        // this is from the other example
+        function getDataSlice(x0, y0, x1, y1) {
+            const data = DATA.slice(x0, x1).map(col => col.slice(y0, y1));
+            const column_indices = INDEXED_COLUMN_NAMES.slice(x0, x1);
+            const num_columns = DATA.length;
+            const num_rows = DATA[0].length;
+            return {
+                num_rows,
+                num_columns,
+                column_indices, 
+                data
+            };
+        }
+
+        const regular = document.getElementsByTagName('regular-table')[0];
+
+        const removeClasses = (tc) => {
+            tc.classList.remove('smCol', 'mdCol', 'lgCol');
+        }
+
+        const getClass = (el) => {
+            const meta = regular.get_meta(el);
+            const name = COLUMN_NAMES[meta.cidx][0];
+
+            if (name.includes("Small")) {
+                return 'smCol';
+            } else if (name.includes("Medium")) { 
+                return 'mdCol';
+            } else if (name.includes("Large")) { 
+                return 'lgCol';
+            }
+        };
+
+        const apply = () => {
+            const tds = regular.get_tds();
+            const ths = regular.get_ths();
+            for (const tc of [...ths, ...tds]) {
+                removeClasses(tc);
+                const sizeClass = getClass(tc);
+                if (sizeClass) {
+                    tc.classList.add(sizeClass);
+                }
+            }
+        }
+
+        regular.setDataModel(getDataSlice).then(apply);
+        regular.addEventListener("regular-table-after-update", apply);
+    </script>
+
+</body>
+
+</html>
