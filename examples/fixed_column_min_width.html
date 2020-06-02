@@ -16,7 +16,7 @@
     <link rel='stylesheet' href="../dist/css/material.css">
     <style>
         .fixed {
-            min-width: 50px !important;
+            min-width: 80px !important;
         }
     </style>
 </head>
@@ -26,38 +26,48 @@
     <regular-table></regular-table>
 
     <script>
-        const fillIdx = (name) =>
-            Array.from(Array(1000).keys()).map(x => `${name} ${x}`);
+        function createTextContent(text) {
+            return Array.from(Array(1000).keys()).map(idx => `${text} ${idx}`);
+        }
+                
+        function createColumnNames(dataset) {
+            const columnKey = () => {
+                const keys = Object.keys(dataset);
+                return [keys[Math.floor(Math.random() * keys.length)]];
+            }
 
-        const columns = {
-            "Fixed Column": fillIdx("Fixed"),
-            "Not Set Column": fillIdx("Not set")
-        };
-
-        const columnKey = () => {
-            const keys = Object.keys(columns);
-            return [keys[Math.floor(Math.random() * keys.length)]];
+            const COLUMN_COUNT = 20;
+            return Array.from(Array(COLUMN_COUNT)).map(_ => columnKey());
         }
 
-        const COLUMN_COUNT = 20;
-        const COLUMN_NAMES = Array.from(Array(COLUMN_COUNT)).map(_ => columnKey());
-        const INDEXED_COLUMN_NAMES = COLUMN_NAMES.map((column, idx) => [`${column} ${idx}`]);
-        const DATA = COLUMN_NAMES.map(key => columns[key]);
-     
-        function getDataSlice(x0, y0, x1, y1) {
-            const data = DATA.slice(x0, x1).map(col => col.slice(y0, y1));
-            const column_indices = INDEXED_COLUMN_NAMES.slice(x0, x1);
-            const num_columns = DATA.length;
-            const num_rows = DATA[0].length;
-            return {
-                num_rows,
-                num_columns,
-                column_indices, 
-                data
+        function createDataModel () {
+            const INDEXED_COLUMN_NAMES = COLUMN_NAMES
+                .map((col, idx) => [`${col} ${idx}`]);
+            const DATA = COLUMN_NAMES.map(key => DATASET[key]);
+        
+            return (x0, y0, x1, y1) => {
+                const data = DATA.slice(x0, x1).map(col => col.slice(y0, y1));
+                const column_indices = INDEXED_COLUMN_NAMES.slice(x0, x1);
+                const num_columns = DATA.length;
+                const num_rows = DATA[0].length;
+                return {
+                    num_rows,
+                    num_columns,
+                    column_indices, 
+                    data
+                };
             };
         }
 
-        const regular = document.getElementsByTagName('regular-table')[0];
+        const DATASET = {
+            "Fixed Column": createTextContent("Fixed"),
+            "Not Set Column": createTextContent("Not set")
+        };
+
+        const COLUMN_NAMES = createColumnNames(DATASET);
+
+        
+        const tableApi = document.getElementsByTagName('regular-table')[0];
 
         const fixed_class = 'fixed';
 
@@ -67,24 +77,26 @@
         }
 
         const setClass = (el) => {
-            const meta = regular.get_meta(el);
-            const name = COLUMN_NAMES[meta.cidx][0];
+            const metadata = tableApi.get_meta(el);
+            const name = COLUMN_NAMES[metadata.cidx][0];
             if (name.includes("Fixed")) {
                 el.classList.add(fixed_class);
             }
         };
 
         const apply = () => {
-            const tds = regular.get_tds();
-            const ths = regular.get_ths();
+            const tds = tableApi.get_tds();
+            const ths = tableApi.get_ths();
             for (const tc of [...tds, ...ths]) {
                 clear(tc);
                 setClass(tc);
             }
         }
 
-        regular.setDataModel(getDataSlice).then(apply);
-        regular.addEventListener("regular-table-after-update", apply);
+        const getDataSliceFn = createDataModel();
+
+        tableApi.setDataModel(getDataSliceFn).then(apply);
+        tableApi.addEventListener("regular-table-after-update", apply);
     </script>
 
 </body>
