@@ -14,11 +14,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
     <script src="../dist/umd/regular-table.js"></script>
     <link rel='stylesheet' href="../dist/css/material.css">
-    <style>
-        .fixed {
-            min-width: 80px !important;
-        }
-    </style>
 </head>
 
 <body>
@@ -26,28 +21,41 @@
     <regular-table></regular-table>
 
     <script>
-        function createTextContent(text) {
-            return Array.from(Array(1000).keys()).map(idx => `${text} ${idx}`);
+        function createTextCells(count, text) {
+            return Array.from(Array(count).keys()).map(idx => `${text} ${idx}`);
         }
                 
-        function createColumnNames(dataset) {
+        function createColumns(columns, count) {
             const columnKey = () => {
-                const keys = Object.keys(dataset);
-                return [keys[Math.floor(Math.random() * keys.length)]];
+                const keys = columns;
+                return keys[Math.floor(Math.random() * keys.length)];
             }
-
-            const COLUMN_COUNT = 20;
-            return Array.from(Array(COLUMN_COUNT)).map(_ => columnKey());
+            return Array.from(Array(count)).map((_, idx) => {
+                const key = columnKey();
+                return { 
+                    key,
+                    value: `${key} Column ${idx}`
+                };
+            });
         }
 
-        function createDataModel () {
-            const INDEXED_COLUMN_NAMES = COLUMN_NAMES
-                .map((col, idx) => [`${col} ${idx}`]);
-            const DATA = COLUMN_NAMES.map(key => DATASET[key]);
-        
-            return (x0, y0, x1, y1) => {
+        function createDataset(columns, cell_count) {
+            return columns.reduce((prev, curr) => ({
+                ...prev,
+                [curr]: createTextCells(cell_count, curr)
+            }), {});
+        }
+
+        function createDataModel(base_columns, column_count, cell_count) {
+            const dataset = createDataset(base_columns, cell_count);
+            const columns = createColumns(base_columns, column_count);
+
+            const DATA = columns.map(({ key }) => dataset[key]);
+            const COLUMN_INDICES = columns.map(({ value }) => [value]);
+
+            const getDataSlice = (x0, y0, x1, y1) => {
                 const data = DATA.slice(x0, x1).map(col => col.slice(y0, y1));
-                const column_indices = INDEXED_COLUMN_NAMES.slice(x0, x1);
+                const column_indices = COLUMN_INDICES.slice(x0, x1);
                 const num_columns = DATA.length;
                 const num_rows = DATA[0].length;
                 return {
@@ -57,47 +65,77 @@
                     data
                 };
             };
+            return {
+                getDataSlice,
+                columns
+            }
         }
 
-        const DATASET = {
-            "Fixed Column": createTextContent("Fixed"),
-            "Not Set Column": createTextContent("Not set")
-        };
+        const BASE_COLUMNS = ['Fixed', 'Not Set'];
+        const COLUMN_COUNT = 20;
+        const CELL_COUNT = 1000;
 
-        const COLUMN_NAMES = createColumnNames(DATASET);
+        // Create data model that returns a getDataSlice function and a columns array.
+        const { getDataSlice, columns } = createDataModel(
+            BASE_COLUMNS,
+            COLUMN_COUNT,
+            CELL_COUNT
+        );
 
-        
+        // Get Regular Table element.
         const tableApi = document.getElementsByTagName('regular-table')[0];
 
-        const fixed_class = 'fixed';
+        const FIXED_CLASS = 'fixed';
 
-        const clear = (el) => {
-            el.classList.remove(fixed_class);
-            el.style.minWidth = '';
+        // Clear previous cell manipulations done by this api.
+        function clear(cellElement) {
+            cellElement.classList.remove(FIXED_CLASS);
+            cellElement.style.minWidth = '';
         }
 
-        const setClass = (el) => {
-            const metadata = tableApi.get_meta(el);
-            const name = COLUMN_NAMES[metadata.cidx][0];
-            if (name.includes("Fixed")) {
-                el.classList.add(fixed_class);
-            }
+        // Get column name by index.
+        function columnNameMapper(index) {
+            return columns[index].key;
+        }
+
+        // Check if cell should apply fixed min-width.
+        function shouldCellApplyFixedMinWidth(cellElement) {
+            // Use regular-table api to get cell metadata.
+            const metadata = tableApi.get_meta(cellElement);
+            const name = columnNameMapper(metadata.cidx);
+            return name.includes("Fixed");
+        }
+        
+        // Add "fixed" class to cell element.
+        function setFixedClass(cellElement) {
+            cellElement.classList.add(FIXED_CLASS);
         };
 
-        const apply = () => {
-            const tds = tableApi.get_tds();
+        // Apply fixed min-width to cells when appropiate. 
+        function apply() {
+            // Use regular-table api to get all rendered th and td elements .
             const ths = tableApi.get_ths();
-            for (const tc of [...tds, ...ths]) {
-                clear(tc);
-                setClass(tc);
+            const tds = tableApi.get_tds();
+            // Iterate over all rendered cells.
+            for (const cellElement of [...ths, ...tds]) {
+                clear(cellElement);
+                const flag = shouldCellApplyFixedMinWidth(cellElement);
+                if (flag) setFixedClass(cellElement);
             }
         }
 
-        const getDataSliceFn = createDataModel();
+        // Pass getDataSlice function to regular-table api.
+        // Set apply function to run after promise resolution.
+        tableApi.setDataModel(getDataSlice).then(apply);
 
-        tableApi.setDataModel(getDataSliceFn).then(apply);
+        // Set apply function to run after each change in the grid
         tableApi.addEventListener("regular-table-after-update", apply);
     </script>
 
+    <style>
+        .fixed {
+            min-width: 80px !important;
+        }
+    </style>
 </body>
 </html>
