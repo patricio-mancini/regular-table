@@ -15,17 +15,8 @@
     <script src="../dist/umd/regular-table.js"></script>
     <link rel='stylesheet' href="../dist/css/material.css">
     <style>
-        .smCol {
+        .fixed {
             min-width: 50px !important;
-            max-width: 50px !important;
-        }
-        .mdCol {
-            min-width: 75px !important;
-            max-width: 75px !important;
-        }
-        .lgCol {
-            min-width: 100px !important;
-            max-width: 100px !important;
         }
     </style>
 </head>
@@ -36,13 +27,11 @@
 
     <script>
         const fillIdx = (name) =>
-            Array.from(Array(2000).keys()).map(x => `${name} ${x}`)
+            Array.from(Array(1000).keys()).map(x => `${name} ${x}`);
 
         const columns = {
-            "Small Column": fillIdx("small"),
-            "Medium Column": fillIdx("medium"),
-            "Large Column": fillIdx("large"),
-            "Not Set Column": fillIdx("not set")
+            "Fixed Column": fillIdx("Fixed"),
+            "Not Set Column": fillIdx("Not set")
         };
 
         const columnKey = () => {
@@ -55,7 +44,6 @@
         const INDEXED_COLUMN_NAMES = COLUMN_NAMES.map((column, idx) => [`${column} ${idx}`]);
         const DATA = COLUMN_NAMES.map(key => columns[key]);
      
-        // this is from the other example
         function getDataSlice(x0, y0, x1, y1) {
             const data = DATA.slice(x0, x1).map(col => col.slice(y0, y1));
             const column_indices = INDEXED_COLUMN_NAMES.slice(x0, x1);
@@ -71,32 +59,27 @@
 
         const regular = document.getElementsByTagName('regular-table')[0];
 
-        const removeClasses = (tc) => {
-            tc.classList.remove('smCol', 'mdCol', 'lgCol');
+        const fixed_class = 'fixed';
+
+        const clear = (el) => {
+            el.classList.remove(fixed_class);
+            el.style.minWidth = '';
         }
 
-        const getClass = (el) => {
+        const setClass = (el) => {
             const meta = regular.get_meta(el);
             const name = COLUMN_NAMES[meta.cidx][0];
-
-            if (name.includes("Small")) {
-                return 'smCol';
-            } else if (name.includes("Medium")) { 
-                return 'mdCol';
-            } else if (name.includes("Large")) { 
-                return 'lgCol';
+            if (name.includes("Fixed")) {
+                el.classList.add(fixed_class);
             }
         };
 
         const apply = () => {
             const tds = regular.get_tds();
             const ths = regular.get_ths();
-            for (const tc of [...ths, ...tds]) {
-                removeClasses(tc);
-                const sizeClass = getClass(tc);
-                if (sizeClass) {
-                    tc.classList.add(sizeClass);
-                }
+            for (const tc of [...tds, ...ths]) {
+                clear(tc);
+                setClass(tc);
             }
         }
 
@@ -105,5 +88,4 @@
     </script>
 
 </body>
-
 </html>
