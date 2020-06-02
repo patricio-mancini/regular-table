@@ -1,6 +1,6 @@
 {
     "name": "regular-table",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "description": "A regular `<table>`, for an async and virtual data model.",
     "repository": {
         "type": "git",
@@ -17,22 +17,21 @@
     "jsdelivr": "dist/umd/regular-table.js",
     "files": [
         "dist/**/*",
+        "less",
         "babel.config.js"
     ],
     "scripts": {
-        "prebuild": "mkdirp dist/esm dist/css dist/less",
-        "build:static": "cpx \"src/less/*\" dist/less && cpx \"examples/*\" dist/examples",
-        "build:babel": "babel src/js --source-maps --out-dir dist/esm",
-        "build:webpack": "webpack --color",
+        "build:babel": "babel src/js --out-dir dist/esm",
+        "build:webpack": "webpack",
         "build:less": "lessc src/less/material.less dist/css/material.css",
-        "build": "npm-run-all build:static build:babel build:webpack build:less",
+        "build": "npm-run-all -p build:*",
         "clean": "rimraf dist",
-        "lint": "eslint src",
-        "fix": "eslint src --fix",
-        "test": "yarn jest --verbose",
+        "lint": "eslint src examples/*.html",
+        "fix": "yarn lint --fix",
+        "test": "jest --noStackTrace",
         "start": "http-server",
-        "watch:babel": "babel src/js --source-maps --watch --out-dir dist/esm",
-        "watch:webpack": "webpack --watch --color",
+        "watch:babel": "babel src/js --watch --out-dir dist/esm",
+        "watch:webpack": "webpack --watch",
         "watch": "npm-run-all -p watch:*"
     },
     "publishConfig": {
@@ -50,12 +49,14 @@
         "@babel/plugin-proposal-decorators": "^7.8.3",
         "@babel/plugin-proposal-optional-chaining": "^7.9.0",
         "@babel/preset-env": "^7.9.0",
+        "@finos/perspective": "=0.5.0",
         "babel-eslint": "^10.1.0",
         "babel-loader": "^8.1.0",
         "babel-plugin-lodash": "^3.3.4",
         "babel-plugin-transform-custom-element-classes": "^0.1.0",
         "cpx": "^1.5.0",
         "eslint": "^7.1.0",
+        "eslint-plugin-html": "^6.0.2",
         "eslint-plugin-prettier": "^3.1.3",
         "http-server": "^0.12.3",
         "jest": "^26.0.1",
@@ -66,6 +67,7 @@
         "puppeteer": "^3.1.0",
         "source-map-explorer": "^2.4.2",
         "source-map-loader": "^0.2.4",
+        "superstore-arrow": "^1.0.0",
         "webpack": "^4.43.0",
         "webpack-cli": "^3.3.11"
     }

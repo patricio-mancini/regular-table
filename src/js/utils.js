@@ -8,74 +8,32 @@
  *
  */
 
-import {DEBUG} from "./constants";
-
-/******************************************************************************
- *
- * Events
- *
- */
-
-export async function getCellConfig({view, config}, row_idx, col_idx) {
-    const row_pivots = config.row_pivots;
-    const column_pivots = config.column_pivots;
-    const start_row = row_idx >= 0 ? row_idx : 0;
-    const end_row = start_row + 1;
-    const r = await view.to_json({start_row, end_row});
-    const row_paths = r.map((x) => x.__ROW_PATH__);
-    const row_pivots_values = row_paths[0] || [];
-    const row_filters = row_pivots
-        .map((pivot, index) => {
-            const pivot_value = row_pivots_values[index];
-            return pivot_value ? [pivot, "==", pivot_value] : undefined;
-        })
-        .filter((x) => x);
-    const column_index = row_pivots.length > 0 ? col_idx + 1 : col_idx;
-    const column_paths = Object.keys(r[0])[column_index];
-    const result = {row: r[0]};
-    let column_filters = [];
-    if (column_paths) {
-        const column_pivot_values = column_paths.split("|");
-        result.column_names = [column_pivot_values[column_pivot_values.length - 1]];
-        column_filters = column_pivots
-            .map((pivot, index) => {
-                const pivot_value = column_pivot_values[index];
-                return pivot_value ? [pivot, "==", pivot_value] : undefined;
-            })
-            .filter((x) => x)
-            .filter(([, , value]) => value !== "__ROW_PATH__");
-    }
-
-    const filters = config.filter.concat(row_filters).concat(column_filters);
-    result.config = {filters};
-    return result;
-}
-
 /******************************************************************************
  *
  * Profling
  *
  */
 
-let LOG = [];
+let AVG = 0,
+    TOTAL = 0,
+    START = performance.now();
 
-function log_fps() {
-    const avg = LOG.reduce((x, y) => x + y, 0) / LOG.length;
-    const rfps = LOG.length / 5;
-    const vfps = 1000 / avg;
-    const nframes = LOG.length;
-    console.log(`${avg.toFixed(2)} ms/frame   ${rfps} rfps   ${vfps.toFixed(2)} vfps   (${nframes} frames in 5s)`);
-    LOG = [];
+export function get_draw_fps() {
+    const now = performance.now();
+    const elapsed = now - START;
+    const avg = AVG;
+    const real_fps = (TOTAL * 1000) / elapsed;
+    const virtual_fps = 1000 / avg;
+    const num_frames = TOTAL;
+    AVG = 0;
+    TOTAL = 0;
+    START = now;
+    return {avg, real_fps, virtual_fps, num_frames, elapsed};
 }
 
 export function log_perf(x) {
-    LOG.push(x);
-}
-
-export function _start_profiling_loop() {
-    if (DEBUG) {
-        setInterval(log_fps, 5000);
-    }
+    AVG = (AVG * TOTAL + x) / (TOTAL + 1);
+    TOTAL += 1;
 }
 
 /******************************************************************************
@@ -104,11 +62,6 @@ export function memoize(_target, _property, descriptor) {
     }
 }
 
-export function column_path_2_type(schema, column) {
-    const parts = column.split("|");
-    return schema[parts[parts.length - 1]];
-}
-
 /**
  * Identical to a non-tagger template literal, this is only used to indicate to
  * babel that this string should be HTML-minified on production builds.
@@ -130,38 +83,6 @@ const invertPromise = () => {
     promise.resolve = _resolve;
     return promise;
 };
-
-export function isEqual(a, b) {
-    if (a === b) return true;
-    if (a && b && typeof a == "object" && typeof b == "object") {
-        if (a.constructor !== b.constructor) return false;
-        let length, i, keys;
-        if (Array.isArray(a)) {
-            length = a.length;
-            if (length != b.length) return false;
-            for (i = length; i-- !== 0; ) if (!isEqual(a[i], b[i])) return false;
-            return true;
-        }
-
-        if (a.valueOf !== Object.prototype.valueOf) return a.valueOf() === b.valueOf();
-        if (a.toString !== Object.prototype.toString) return a.toString() === b.toString();
-        keys = Object.keys(a);
-        length = keys.length;
-        if (length !== Object.keys(b).length) return false;
-        for (i = length; i-- !== 0; ) {
-            if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
-        }
-
-        for (i = length; i-- !== 0; ) {
-            let key = keys[i];
-            if (!isEqual(a[key], b[key])) return false;
-        }
-
-        return true;
-    }
-
-    return a !== a && b !== b;
-}
 
 export function throttlePromise(target, property, descriptor) {
     const lock = Symbol("private lock");
@@ -189,89 +110,3 @@ export function throttlePromise(target, property, descriptor) {
     };
     return descriptor;
 }
-
-export function get_type_config(type) {
-    const config = {};
-    if (default_types[type]) {
-        Object.assign(config, default_types[type]);
-    }
-    if (config.type) {
-        const props = get_type_config(config.type);
-        Object.assign(props, config);
-        return props;
-    } else {
-        return config;
-    }
-}
-
-export const default_types = {
-    /**
-     * `types` are the type-specific configuration options.  Each key is the
-     * name of a perspective type; their values are configuration objects for
-     * that type.
-     */
-    types: {
-        float: {
-            /**
-             * Which filter operator should be the default when a column of this
-             * type is pivotted.
-             */
-            filter_operator: "==",
-
-            /**
-             * Which aggregate should be the default when a column of this type
-             * is pivotted.
-             */
-            aggregate: "sum",
-
-            /**
-             * The format object for this type.  Can be either an
-             * `toLocaleString()` `options` object for this type (or supertype),
-             * or a function which returns the formatted string for this type.
-             */
-            format: {
-                style: "decimal",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            },
-        },
-        string: {
-            filter_operator: "==",
-            aggregate: "count",
-        },
-        integer: {
-            filter_operator: "==",
-            aggregate: "sum",
-            format: {},
-        },
-        boolean: {
-            filter_operator: "==",
-            aggregate: "count",
-        },
-        datetime: {
-            filter_operator: "==",
-            aggregate: "count",
-            format: {
-                week: "numeric",
-                year: "numeric",
-                month: "numeric",
-                day: "numeric",
-                hour: "numeric",
-                minute: "numeric",
-                second: "numeric",
-            },
-            null_value: -1,
-        },
-        date: {
-            filter_operator: "==",
-            aggregate: "count",
-            format: {
-                week: "numeric",
-                year: "numeric",
-                month: "numeric",
-                day: "numeric",
-            },
-            null_value: -1,
-        },
-    },
-};

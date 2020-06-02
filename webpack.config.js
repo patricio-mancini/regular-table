@@ -2,7 +2,7 @@ const path = require("path");
 
 module.exports = {
     entry: "./src/js/index.js",
-    mode: "production",
+    mode: process.env.DEBUG ? "development" : "production",
     devtool: "source-map",
     module: {
         rules: [
@@ -12,11 +12,6 @@ module.exports = {
                 use: "babel-loader",
             },
         ],
-    },
-    performance: {
-        hints: false,
-        maxEntrypointSize: 512000,
-        maxAssetSize: 512000,
     },
     output: {
         filename: "regular-table.js",

@@ -11,6 +11,7 @@
 import {METADATA_MAP} from "./constants";
 import {RegularTableViewModel} from "./table";
 import {RegularViewEventModel} from "./events";
+import {get_draw_fps} from "./utils";
 
 /**
  * Regular's "public" API.  See the `superstore-custom-grid.html` simple
@@ -25,6 +26,7 @@ export class RegularViewModel extends RegularViewEventModel {
         this.register_listeners();
         this.setAttribute("tabindex", "0");
         this._column_sizes = {auto: {}, override: {}, indices: []};
+        this._style_callbacks = new Map();
         this.table_model = new RegularTableViewModel(this._table_clip, this._column_sizes, this._sticky_container);
         if (!this.table_model) return;
         if (this !== this._sticky_container.parentElement) {
@@ -90,7 +92,55 @@ export class RegularViewModel extends RegularViewEventModel {
         this.reset_viewport();
     }
 
-    async setDataModel(view) {
+    /**
+     * Get performance statistics about this `<regular-table>`.  Calling this
+     * method resets the internal state, which makes it convenient to measure
+     * performance at regular intervals (see example).
+     * @returns {*} An object with performance statistics about calls to
+     * `draw()`, with the following keys:
+     * * `avg` - Avergage milliseconds per call
+     * * `real_fps` - `num_frames` / `elapsed`
+     * * `virtual_fps` - `elapsed` / `avg`
+     * * `num_frames` - Number of frames rendered
+     * * `elapsed` - Number of milliseconds since last call to `getDrawFPS()`
+     * @example
+     * const table = document.getElementById("my_regular_table");
+     * setInterval(() => {
+     *     const {real_fps} = table.getDrawFPS();
+     *     console.log(`Measured ${fps} fps`)
+     * });
+     */
+    getDrawFPS() {
+        return get_draw_fps();
+    }
+
+    addStyleListener(styleListener) {
+        const key = this._style_callbacks.size;
+        this._style_callbacks.set(key, styleListener);
+        return key;
+    }
+
+    /**
+     *
+     * @param {Function<Promise<DataResponse>>} dataListener
+     * `dataListener` is called by to request a rectangular section of data
+     * for a virtual viewport, (x0, y0, x1, y1), and returns a `DataReponse`
+     * object with this structure:
+     * ```
+     *                   column_headers:              num_columns:
+     *                   [["X00", ["X00",  ["X00",    X > 3
+     *                     "X0"],  "X1"],   "X2"]]
+     *
+     * row_headers:      data:
+     * [["Y00", "Y0"]    [["A",   [true,   [0,
+     *  ["Y00", "Y1"]      "B",    false,   1,
+     *  ["Y00", "Y2"]]     "C"],   true]],  2]]
+     *
+     * num_rows:
+     * Y > 3
+     * ```
+     */
+    setDataListener(dataListener) {
         let schema = {};
         let config = {
             row_pivots: [],
@@ -98,21 +148,6 @@ export class RegularViewModel extends RegularViewEventModel {
         };
 
         this._invalid_schema = true;
-        const options = this.infer_options(config);
-        this._view_cache = {view, config, schema};
-        await this.draw(options);
-    }
-
-    save() {
-        const selected = this._get_selected();
-        if (selected !== undefined) {
-            return {selected};
-        }
-    }
-
-    restore(config) {
-        if (config.selected) {
-            this._set_selected(config.selected);
-        }
+        this._view_cache = {view: dataListener, config, schema};
     }
 }
