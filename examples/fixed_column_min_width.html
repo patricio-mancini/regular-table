@@ -51,17 +51,17 @@
             const columns = createColumns(base_columns, column_count);
 
             const DATA = columns.map(({ key }) => dataset[key]);
-            const COLUMN_INDICES = columns.map(({ value }) => [value]);
+            const COLUMN_HEADERS = columns.map(({ value }) => [value]);
 
             const getDataSlice = (x0, y0, x1, y1) => {
                 const data = DATA.slice(x0, x1).map(col => col.slice(y0, y1));
-                const column_indices = COLUMN_INDICES.slice(x0, x1);
+                const column_headers = COLUMN_HEADERS.slice(x0, x1);
                 const num_columns = DATA.length;
                 const num_rows = DATA[0].length;
                 return {
                     num_rows,
                     num_columns,
-                    column_indices, 
+                    column_headers,
                     data
                 };
             };
@@ -93,16 +93,15 @@
             cellElement.style.minWidth = '';
         }
 
-        // Get column name by index.
-        function columnNameMapper(index) {
+        function getColumnName(index) {
             return columns[index].key;
         }
 
         // Check if cell should apply fixed min-width.
-        function shouldCellApplyFixedMinWidth(cellElement) {
+        function isFixed(cellElement) {
             // Use regular-table api to get cell metadata.
             const metadata = tableApi.get_meta(cellElement);
-            const name = columnNameMapper(metadata.cidx);
+            const name = getColumnName(metadata.cidx);
             return name.includes("Fixed");
         }
         
@@ -111,25 +110,30 @@
             cellElement.classList.add(FIXED_CLASS);
         };
 
-        // Apply fixed min-width to cells when appropiate. 
-        function apply() {
-            // Use regular-table api to get all rendered th and td elements .
+        // Set fixed min-width to cells when appropiate. 
+        function applyStyle() {
+            // Use regular-table api to get all rendered th and td elements.
             const ths = tableApi.get_ths();
             const tds = tableApi.get_tds();
             // Iterate over all rendered cells.
             for (const cellElement of [...ths, ...tds]) {
                 clear(cellElement);
-                const flag = shouldCellApplyFixedMinWidth(cellElement);
-                if (flag) setFixedClass(cellElement);
+                if (isFixed(cellElement)) setFixedClass(cellElement);
             }
         }
 
-        // Pass getDataSlice function to regular-table api.
-        // Set apply function to run after promise resolution.
-        tableApi.setDataModel(getDataSlice).then(apply);
+        window.addEventListener("DOMContentLoaded", async () => {
+            // Pass getDataSlice function to regular-table api.
+            // Set applyStyle function to run after promise resolution.
+            tableApi.setDataListener(getDataSlice);
 
-        // Set apply function to run after each change in the grid
-        tableApi.addEventListener("regular-table-after-update", apply);
+            // Attach applyStyle function to a listener to apply changes
+            // after the grid is updated.
+            tableApi.addStyleListener(applyStyle);
+
+            // Trigger table draw method to make listeners run
+            await tableApi.draw();
+        });
     </script>
 
     <style>
