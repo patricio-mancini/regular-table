@@ -131,14 +131,25 @@
             // after the grid is updated.
             tableApi.addStyleListener(applyStyle);
 
-            // Trigger table draw method to make listeners run
+            // Trigger table draw method to make listeners run.
             await tableApi.draw();
         });
     </script>
 
     <style>
+        /* Set fixed width for cells. */
         .fixed {
             min-width: 80px !important;
+        }
+        /* Disable default header text selection. */
+        thead tr th {
+            user-select: none;
+        }
+        /* Do not allow content to overflow cell limit. */
+        tr th, tr td {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
         }
     </style>
 </body>
