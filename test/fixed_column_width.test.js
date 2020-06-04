@@ -25,7 +25,7 @@ describe("fixed_column_width.html", () => {
                 .map((x) => getComputedStyle(x).getPropertyValue('min-width')), first_tr);
             const fixedWidth = minWidths[0];
             const notSetWidth = minWidths[1];
-            expect(fixedWidth).toEqual("80px");
+            expect(fixedWidth).toEqual("100px");
             expect(notSetWidth).toEqual("0px");
         });
 
@@ -35,7 +35,7 @@ describe("fixed_column_width.html", () => {
                 .map((x) => getComputedStyle(x).getPropertyValue('max-width')), first_tr);
             const fixed_width = max_widths[0];
             const not_set_width = max_widths[1];
-            expect(fixed_width).toEqual("80px");
+            expect(fixed_width).toEqual("100px");
             expect(not_set_width).toEqual("none");
         });
 
@@ -46,7 +46,7 @@ describe("fixed_column_width.html", () => {
                 .map((x) => getComputedStyle(x).getPropertyValue('min-width')), first_tr);
             const fixedWidth = minWidths[0];
             const notSetWidth = minWidths[1];
-            expect(fixedWidth).toEqual("80px");
+            expect(fixedWidth).toEqual("100px");
             expect(notSetWidth).toEqual("0px");
         });
 
@@ -56,7 +56,7 @@ describe("fixed_column_width.html", () => {
                 .map((x) => getComputedStyle(x).getPropertyValue('max-width')), first_tr);
             const fixed_width = max_widths[0];
             const not_set_width = max_widths[1];
-            expect(fixed_width).toEqual("80px");
+            expect(fixed_width).toEqual("100px");
             expect(not_set_width).toEqual("none");
         });
 

@@ -21,39 +21,44 @@
     <regular-table></regular-table>
 
     <script>
-        function createTextCells(count, text) {
-            return Array.from(Array(count).keys()).map(idx => `${text} ${idx}`);
-        }
-                
-        function createColumns(columns, count) {
-            return Array.from(Array(count)).map((_, idx) => {
-                const key = columns[idx % columns.length];
-                return { 
-                    key,
-                    value: `${key} Column ${idx}`
-                };
-            });
-        }
+        
+        class CreateDataModel {
+            constructor(base_columns, column_count, cell_count) {
+                this._base_columns = base_columns;
+                this._column_count = column_count;
+                this._cell_count = cell_count;
+                this._dataset = this._create_dataset();
+                this.columns = this._create_columns();
+                this._data = this.columns.map(({ key }) => this._dataset[key]);
+                this._column_headers = this.columns.map(({ value }) => [value]);
+            }
 
-        function createDataset(columns, cell_count) {
-            return columns.reduce((prev, curr) => ({
-                ...prev,
-                [curr]: createTextCells(cell_count, curr)
-            }), {});
-        }
+            _create_text_cells(text) {
+                return Array.from(Array(this._cell_count).keys()).map(idx => `${text} ${idx}`);
+            }
+                    
+            _create_columns() {
+                return Array.from(Array(this._column_count)).map((_, idx) => {
+                    const key = this._base_columns[idx % this._base_columns.length];
+                    return { 
+                        key,
+                        value: `${key} Column ${idx}`
+                    };
+                });
+            }
 
-        function createDataModel(base_columns, column_count, cell_count) {
-            const dataset = createDataset(base_columns, cell_count);
-            const columns = createColumns(base_columns, column_count);
+            _create_dataset() {
+                return this._base_columns.reduce((prev, curr) => ({
+                    ...prev,
+                    [curr]: this._create_text_cells(curr)
+                }), {});
+            }
 
-            const DATA = columns.map(({ key }) => dataset[key]);
-            const COLUMN_HEADERS = columns.map(({ value }) => [value]);
-
-            const getDataSlice = (x0, y0, x1, y1) => {
-                const data = DATA.slice(x0, x1).map(col => col.slice(y0, y1));
-                const column_headers = COLUMN_HEADERS.slice(x0, x1);
-                const num_columns = DATA.length;
-                const num_rows = DATA[0].length;
+            data_listener = (x0, y0, x1, y1) => {
+                const data = this._data.slice(x0, x1).map(col => col.slice(y0, y1));
+                const column_headers = this._column_headers.slice(x0, x1);
+                const num_columns = this._data.length;
+                const num_rows = this._data[0].length;
                 return {
                     num_rows,
                     num_columns,
@@ -61,26 +66,21 @@
                     data
                 };
             };
-            return {
-                getDataSlice,
-                columns
-            }
         }
 
         const BASE_COLUMNS = ['Fixed', 'Not Set'];
         const COLUMN_COUNT = 20;
         const CELL_COUNT = 1000;
 
-        // Create data model that returns a getDataSlice function and a columns array.
-        const { getDataSlice, columns } = createDataModel(
+        // Create a data model that returns a data_listener function and a columns array.
+        const data_model = new CreateDataModel(
             BASE_COLUMNS,
             COLUMN_COUNT,
             CELL_COUNT
         );
 
         // Get Regular Table element.
-        const tableApi = document.getElementsByTagName('regular-table')[0];
-
+        const table_api = document.getElementsByTagName('regular-table')[0];
         const FIXED_CLASS = 'fixed';
 
         // Clear previous cell manipulations done by this api.
@@ -89,54 +89,53 @@
             cellElement.style.minWidth = '';
         }
 
-        function getColumnName(index) {
-            return columns[index].key;
+        function get_column_name(index) {
+            return data_model.columns[index].key;
         }
 
         // Check if cell should apply fixed min-width.
-        function isFixed(cellElement) {
+        function is_fixed(cellElement) {
             // Use regular-table api to get cell metadata.
-            const metadata = tableApi.get_meta(cellElement);
-            const name = getColumnName(metadata.cidx);
+            const metadata = table_api.get_meta(cellElement);
+            const name = get_column_name(metadata.cidx);
             return name.includes("Fixed");
         }
         
         // Add "fixed" class to cell element.
-        function setFixedClass(cellElement) {
+        function set_fixed_class(cellElement) {
             cellElement.classList.add(FIXED_CLASS);
         };
 
         // Set fixed min-width to cells when appropiate. 
-        function applyStyle() {
+        function style_listener() {
             // Use regular-table api to get all rendered th and td elements.
-            const ths = tableApi.get_ths();
-            const tds = tableApi.get_tds();
+            const ths = table_api.get_ths();
+            const tds = table_api.get_tds();
             // Iterate over all rendered cells.
             for (const cellElement of [...ths, ...tds]) {
                 clear(cellElement);
-                if (isFixed(cellElement)) setFixedClass(cellElement);
+                if (is_fixed(cellElement)) set_fixed_class(cellElement);
             }
         }
 
         window.addEventListener("DOMContentLoaded", async () => {
-            // Pass getDataSlice function to regular-table api.
-            // Set applyStyle function to run after promise resolution.
-            tableApi.setDataListener(getDataSlice);
+            // Pass data_listener function to regular-table api.
+            table_api.setDataListener(data_model.data_listener);
 
-            // Attach applyStyle function to a listener to apply changes
+            // Attach style_listener function to a listener to apply changes
             // after the grid is updated.
-            tableApi.addStyleListener(applyStyle);
+            table_api.addStyleListener(style_listener);
 
             // Trigger table draw method to make listeners run.
-            await tableApi.draw();
+            await table_api.draw();
         });
     </script>
 
     <style>
         /* Set fixed width for cells. */
         .fixed {
-            min-width: 80px !important;
-            max-width: 80px !important;
+            min-width: 100px !important;
+            max-width: 100px !important;
         }
         /* Disable default header text selection. */
         thead tr th {
