@@ -148,22 +148,25 @@
 
             const override_width = Math.max(1, width + diff);
 
-            if (override_width < minWidth || override_width > maxWidth) return;
+            if (override_width < minWidth || override_width > maxWidth) {
+                th.style.minWidth = width + "px";
+                th.style.maxWidth = width + "px";
+            } else {
+                th.style.minWidth = override_width + "px";
+                th.style.maxWidth = override_width + "px";
 
-            th.style.minWidth = override_width + "px";
-            th.style.maxWidth = override_width + "px";
-
-            const tds = tableApi.querySelectorAll("thead th, tbody td");
-            for (const td of tds) {
-                const tdMetadata = tableApi.getMeta(td);
-                if (metadata.x === tdMetadata.x) {
-                    td.style.minWidth = override_width + "px";
-                    td.style.maxWidth = override_width + "px";
-                    console.log(override_width, window.getComputedStyle(td).getPropertyValue("min-width"));
+                const tds = tableApi.querySelectorAll("thead th, tbody td");
+                for (const td of tds) {
+                    const tdMetadata = tableApi.getMeta(td);
+                    if (metadata.x === tdMetadata.x) {
+                        td.style.minWidth = override_width + "px";
+                        td.style.maxWidth = override_width + "px";
+                        console.log(override_width, window.getComputedStyle(td).getPropertyValue("min-width"));
+                    }
                 }
-            }
-            if (diff < 0) {
-                // await tableApi.draw({preserve_width: true});
+                if (diff < 0) {
+                    // await tableApi.draw({preserve_width: true});
+                }
             }
         }
 
@@ -184,7 +187,7 @@
             const up = async () => {
                 document.removeEventListener("mousemove", move);
                 document.removeEventListener("mouseup", up);
-                await tableApi.draw();
+                // await tableApi.draw();
             };
             document.addEventListener("mousemove", move);
             document.addEventListener("mouseup", up);
