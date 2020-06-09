@@ -1,0 +1,229 @@
+<!--
+   
+   Copyright (c) 2020, the Regular Table Authors.
+   
+   This file is part of the Regular Table library, distributed under the terms of
+   the Apache License 2.0.  The full license can be found in the LICENSE file.
+
+-->
+
+<!--
+
+-->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <script src="../dist/umd/regular-table.js"></script>
+    <link rel='stylesheet' href="../dist/css/material.css">
+</head>
+
+<body>
+
+    <regular-table></regular-table>
+
+    <script>
+        class CreateDataModel {
+            constructor(baseColumns, columnCount, cellCount) {
+                this._baseColumns = baseColumns;
+                this._columnCount = columnCount;
+                this._cellCount = cellCount;
+                this._dataset = this._createDataset();
+                this.columns = this._createColumns();
+                this._data = this.columns.map(({key}) => this._dataset[key]);
+                this._columnHeaders = this.columns.map(({value}) => [value]);
+            }
+
+            _createTextCells(text) {
+                return Array.from(Array(this._cellCount).keys()).map((idx) => `${text} ${idx}`);
+            }
+
+            _createColumns() {
+                return Array.from(Array(this._columnCount)).map((_, idx) => {
+                    const key = this._baseColumns[idx % this._baseColumns.length];
+                    return {
+                        key,
+                        value: `${key} Column ${idx}`,
+                    };
+                });
+            }
+
+            _createDataset() {
+                return this._baseColumns.reduce(
+                    (prev, curr) => ({
+                        ...prev,
+                        [curr]: this._createTextCells(curr),
+                    }),
+                    {}
+                );
+            }
+
+            dataListener = (x0, y0, x1, y1) => {
+                const data = this._data.slice(x0, x1).map((col) => col.slice(y0, y1));
+                const column_headers = this._columnHeaders.slice(x0, x1);
+                const num_columns = this._data.length;
+                const num_rows = this._data[0].length;
+                return {
+                    num_rows,
+                    num_columns,
+                    column_headers,
+                    data,
+                };
+            };
+        }
+    </script>
+    <script>
+
+        const baseColumns = ["Small", "Medium", "Large"];
+        const columnCount = 20;
+        const cellCount = 1;
+
+        // Create data model that returns a dataListener function and a columns array.
+        const dataModel = new CreateDataModel(baseColumns, columnCount, cellCount);
+
+        // Get Regular Table element.
+        const tableApi = document.getElementsByTagName("regular-table")[0];
+
+        // Clear previous cell manipulations done by this api.
+        function clear(cellElement) {
+            cellElement.classList.remove("small", "medium", "large");
+            cellElement.style.minWidth = "";
+        }
+
+        function getColumnName(index) {
+            return dataModel.columns[index].key;
+        }
+
+        // Check if cell should apply fixed min-width.
+        function isFixed(cellElement) {
+            // Use regular-table api to get cell metadata.
+            const metadata = tableApi.getMeta(cellElement);
+            const name = getColumnName(metadata.x);
+            return name.includes("Fixed");
+        }
+
+        // Add class to cell element.
+        function setClass(cellElement) {
+            const metadata = tableApi.getMeta(cellElement);
+            const name = getColumnName(metadata.x);
+            let className;
+            if (name.includes("Small")) {
+                className = "small";
+            } else if (name.includes("Medium")) {
+                className = "medium";
+            } else if (name.includes("Large")) {
+                className = "large";
+            }
+            cellElement.classList.add(className);
+        }
+
+        function setCustomResizeElement(th, name) {
+            th.innerHTML = `
+                <span>${name}</span>
+                <span class="resize"></span>
+            `;
+        }
+
+        // Set fixed min-width to cells when appropiate.
+        function styleListener() {
+
+            const ths = tableApi.querySelectorAll("thead th");
+            const tds = tableApi.querySelectorAll("tbody td");
+            
+            for (const cellElement of ths) {
+                const metadata = tableApi.getMeta(cellElement);
+                const name = getColumnName(metadata.x);
+                setCustomResizeElement(cellElement, name);
+            }
+
+            // Iterate over all rendered cells.
+            for (const cellElement of [...ths, ...tds]) {
+                clear(cellElement);
+                setClass(cellElement);
+            }
+        }
+
+        async function onColumnMove(event, th, start, width, metadata) {
+            await new Promise(setTimeout);
+            const diff = event.pageX - start;
+            const override_width = Math.max(1, width + diff);
+            th.style.minWidth = override_width + "px";
+            th.style.maxWidth = override_width + "px";
+
+            const cells = tableApi.querySelectorAll("thead th, tbody td");
+            for (const cell of cells) {
+                cell.style.width = override_width + "px";
+            }
+            await tableApi.draw({preserve_width: true});
+        }
+
+        function onColumnResize(event) {
+            const start = event.pageX;
+            const element = event.target.parentElement;
+            const metadata = tableApi.getMeta(element);
+            const width = window.getComputedStyle(element).getPropertyValue("width");
+            const move = (event) => onColumnMove(event, element, start, width, metadata);
+            const up = async () => {
+                document.removeEventListener("mousemove", move);
+                document.removeEventListener("mouseup", up);
+                await tableApi.draw();
+            };
+            document.addEventListener("mousemove", move);
+            document.addEventListener("mouseup", up);
+        }
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            // Pass dataListener function to regular-table api.
+            tableApi.setDataListener(dataModel.dataListener);
+
+            // Attach styleListener function to a listener to apply changes
+            // after the grid is updated.
+            tableApi.addStyleListener(styleListener);
+
+            // Trigger table draw method to make listeners run.
+            await tableApi.draw();
+
+            document.addEventListener("mousedown", (event) => {
+                const is_resize = event.target.classList.contains("resize");
+                if (is_resize) {
+                    onColumnResize(event);
+                }
+            });
+        });
+    </script>
+    <style>
+        .small {
+            min-width: 50px !important;
+            max-width: 100px !important;
+        }
+        .medium {
+            min-width: 150px !important;
+            max-width: 200px !important;
+        }
+        .large {
+            min-width: 250px !important;
+            max-width: 300px !important;
+        }
+        /* Disable default header text selection. */
+        thead tr th {
+            user-select: none;
+        }
+        /* Do not allow content to overflow cell limit. */
+        tr th, tr td {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        .resize {
+            height: 100%;
+            width: 10px;
+            position: absolute;
+            top: 0;
+            right: 0;
+            cursor: col-resize;
+        }
+    </style>
+</body>
+</html>
