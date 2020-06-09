@@ -92,22 +92,18 @@
             cellElement.style.minWidth = "";
         }
 
-        function getColumnName(index) {
+        function getColumnKey(index) {
             return dataModel.columns[index].key;
         }
 
-        // Check if cell should apply fixed min-width.
-        function isFixed(cellElement) {
-            // Use regular-table api to get cell metadata.
-            const metadata = tableApi.getMeta(cellElement);
-            const name = getColumnName(metadata.x);
-            return name.includes("Fixed");
+        function getColumnValue(index) {
+            return dataModel.columns[index].value;
         }
 
         // Add class to cell element.
         function setClass(cellElement) {
             const metadata = tableApi.getMeta(cellElement);
-            const name = getColumnName(metadata.x);
+            const name = getColumnKey(metadata.x);
             let className;
             if (name.includes("Small")) {
                 className = "small";
@@ -134,7 +130,7 @@
             
             for (const cellElement of ths) {
                 const metadata = tableApi.getMeta(cellElement);
-                const name = getColumnName(metadata.x);
+                const name = getColumnValue(metadata.x);
                 setCustomResizeElement(cellElement, name);
             }
 
@@ -145,26 +141,46 @@
             }
         }
 
-        async function onColumnMove(event, th, start, width, metadata) {
+        async function onColumnMove(event, th, start, minWidth, maxWidth, width, metadata) {
             await new Promise(setTimeout);
             const diff = event.pageX - start;
-            const override_width = Math.max(1, width + diff);
-            th.style.minWidth = override_width + "px";
-            th.style.maxWidth = override_width + "px";
 
-            const cells = tableApi.querySelectorAll("thead th, tbody td");
-            for (const cell of cells) {
-                cell.style.width = override_width + "px";
+            const override_width = Math.max(1, width + diff);
+
+            if (diff > 1) debugger;
+
+            if (override_width < minWidth || override_width > maxWidth) return;
+
+            th.style.minWidth = override_width + "px !important";
+            th.style.maxWidth = override_width + "px !important";
+
+            const tds = tableApi.querySelectorAll("thead th, tbody td");
+            for (const td of tds) {
+                const tdMetadata = tableApi.getMeta(td);
+                if (metadata.x === tdMetadata.x) {
+                    td.style.minWidth = override_width + "px !important";
+                    td.style.maxWidth = override_width + "px !important";
+                }
             }
-            await tableApi.draw({preserve_width: true});
+            if (diff < 0) {
+                await tableApi.draw({preserve_width: true});
+            }
         }
 
         function onColumnResize(event) {
             const start = event.pageX;
             const element = event.target.parentElement;
             const metadata = tableApi.getMeta(element);
-            const width = window.getComputedStyle(element).getPropertyValue("width");
-            const move = (event) => onColumnMove(event, element, start, width, metadata);
+
+            element.style.minWidth = "";
+            element.style.maxWidth = "";
+
+            const elementStyles = window.getComputedStyle(element);
+            const width = parseInt(elementStyles.getPropertyValue("width"));
+            const minWidth = parseInt(elementStyles.getPropertyValue("min-width"));
+            const maxWidth = parseInt(elementStyles.getPropertyValue("max-width"));
+
+            const move = (event) => onColumnMove(event, element, start, minWidth, maxWidth, width, metadata);
             const up = async () => {
                 document.removeEventListener("mousemove", move);
                 document.removeEventListener("mouseup", up);
@@ -191,6 +207,7 @@
                     onColumnResize(event);
                 }
             });
+
         });
     </script>
     <style>
