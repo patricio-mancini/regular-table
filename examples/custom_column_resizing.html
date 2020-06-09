@@ -37,7 +37,8 @@
             }
 
             _createTextCells(text) {
-                return Array.from(Array(this._cellCount).keys()).map((idx) => `${text} ${idx}`);
+                return Array.from(Array(this._cellCount).keys())
+                    .map((idx) => `${text} ${idx} ${text} ${idx} ${text} ${idx}`);
             }
 
             _createColumns() {
@@ -77,7 +78,7 @@
     <script>
 
         const baseColumns = ["Small", "Medium", "Large"];
-        const columnCount = 20;
+        const columnCount = 3;
         const cellCount = 1;
 
         // Create data model that returns a dataListener function and a columns array.
@@ -147,23 +148,22 @@
 
             const override_width = Math.max(1, width + diff);
 
-            if (diff > 1) debugger;
-
             if (override_width < minWidth || override_width > maxWidth) return;
 
-            th.style.minWidth = override_width + "px !important";
-            th.style.maxWidth = override_width + "px !important";
+            th.style.minWidth = override_width + "px";
+            th.style.maxWidth = override_width + "px";
 
             const tds = tableApi.querySelectorAll("thead th, tbody td");
             for (const td of tds) {
                 const tdMetadata = tableApi.getMeta(td);
                 if (metadata.x === tdMetadata.x) {
-                    td.style.minWidth = override_width + "px !important";
-                    td.style.maxWidth = override_width + "px !important";
+                    td.style.minWidth = override_width + "px";
+                    td.style.maxWidth = override_width + "px";
+                    console.log(override_width, window.getComputedStyle(td).getPropertyValue("min-width"));
                 }
             }
             if (diff < 0) {
-                await tableApi.draw({preserve_width: true});
+                // await tableApi.draw({preserve_width: true});
             }
         }
 
@@ -212,16 +212,16 @@
     </script>
     <style>
         .small {
-            min-width: 50px !important;
-            max-width: 100px !important;
+            min-width: 20px;
+            max-width: 100px;
         }
         .medium {
-            min-width: 150px !important;
-            max-width: 200px !important;
+            min-width: 40px;
+            max-width: 200px;
         }
         .large {
-            min-width: 250px !important;
-            max-width: 300px !important;
+            min-width: 60px;
+            max-width: 300px;
         }
         /* Disable default header text selection. */
         thead tr th {
@@ -230,7 +230,6 @@
         /* Do not allow content to overflow cell limit. */
         tr th, tr td {
             overflow: hidden;
-            white-space: nowrap;
             text-overflow: ellipsis;
         }
         .resize {
