@@ -57,7 +57,7 @@ describe("two_billion_rows.html", () => {
         test("with the first row's cell test correct", async () => {
             const first_tr = await page.$("regular-table tbody tr:first-child");
             const cell_values = await page.evaluate((first_tr) => Array.from(first_tr.children).map((x) => x.textContent), first_tr);
-            expect(cell_values).toEqual(["Group 200,000", "Row 200,002", "200,002"]);
+            expect(cell_values).toEqual(["Group 200,000", "Row 200,002", "200,002", "200,003"]);
         });
     });
 
@@ -115,13 +115,13 @@ describe("two_billion_rows.html", () => {
         test("with the correct # of rows", async () => {
             const tbody = await page.$("regular-table tbody");
             const num_rows = await page.evaluate((tbody) => tbody.children.length, tbody);
-            expect(num_rows).toEqual(5);
+            expect(num_rows).toEqual(2);
         });
 
         test("with the first row's cell test correct", async () => {
             const first_tr = await page.$("regular-table tbody tr:first-child");
             const cell_values = await page.evaluate((first_tr) => Array.from(first_tr.children).map((x) => x.textContent), first_tr);
-            expect(cell_values).toEqual(["Group 1,999,999,990", "Row 1,999,999,998", "1,999,999,998"]);
+            expect(cell_values).toEqual(["Group 1,999,999,990", "Row 1,999,999,998", "1,999,999,998", "1,999,999,999"]);
         });
     });
 
