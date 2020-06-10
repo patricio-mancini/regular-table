@@ -79,7 +79,7 @@
 
         const baseColumns = ["Small", "Medium", "Large"];
         const columnCount = 3;
-        const cellCount = 1;
+        const cellCount = 1000;
 
         // Create data model that returns a dataListener function and a columns array.
         const dataModel = new CreateDataModel(baseColumns, columnCount, cellCount);
@@ -90,7 +90,6 @@
         // Clear previous cell manipulations done by this api.
         function clear(cellElement) {
             cellElement.classList.remove("small", "medium", "large");
-            cellElement.style.minWidth = "";
         }
 
         function getColumnKey(index) {
@@ -123,16 +122,14 @@
             `;
         }
 
-        // Set fixed min-width to cells when appropiate.
         function styleListener() {
-
             const ths = tableApi.querySelectorAll("thead th");
             const tds = tableApi.querySelectorAll("tbody td");
             
-            for (const cellElement of ths) {
-                const metadata = tableApi.getMeta(cellElement);
+            for (const th of ths) {
+                const metadata = tableApi.getMeta(th);
                 const name = getColumnValue(metadata.x);
-                setCustomResizeElement(cellElement, name);
+                setCustomResizeElement(th, name);
             }
 
             // Iterate over all rendered cells.
@@ -146,27 +143,21 @@
             await new Promise(setTimeout);
             const diff = event.pageX - start;
 
-            const override_width = Math.max(1, width + diff);
+            const override_width = Math.min(maxWidth, Math.max(minWidth, width + diff));
 
-            if (override_width < minWidth || override_width > maxWidth) {
-                th.style.minWidth = width + "px";
-                th.style.maxWidth = width + "px";
-            } else {
-                th.style.minWidth = override_width + "px";
-                th.style.maxWidth = override_width + "px";
+            th.style.minWidth = override_width + "px";
+            th.style.maxWidth = override_width + "px";
 
-                const tds = tableApi.querySelectorAll("thead th, tbody td");
-                for (const td of tds) {
-                    const tdMetadata = tableApi.getMeta(td);
-                    if (metadata.x === tdMetadata.x) {
-                        td.style.minWidth = override_width + "px";
-                        td.style.maxWidth = override_width + "px";
-                        console.log(override_width, window.getComputedStyle(td).getPropertyValue("min-width"));
-                    }
+            const tds = tableApi.querySelectorAll("thead th, tbody td");
+            for (const td of tds) {
+                const tdMetadata = tableApi.getMeta(td);
+                if (metadata.x === tdMetadata.x) {
+                    td.style.minWidth = override_width + "px";
+                    td.style.maxWidth = override_width + "px";
                 }
-                if (diff < 0) {
-                    // await tableApi.draw({preserve_width: true});
-                }
+            }
+            if (diff < 0) {
+                await tableApi.draw();
             }
         }
 
