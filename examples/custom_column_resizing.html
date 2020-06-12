@@ -116,11 +116,10 @@
             cellElement.classList.add(className);
         }
 
-        function setCustomResizeElement(th, name) {
-            th.innerHTML = `
-               ${name}
-                <span class="resize"></span>
-            `;
+        function setCustomResizeElement(th) {
+            const span = document.createElement("span");
+            span.classList.add("resize");
+            th.appendChild(span);
         }
 
         async function onColumnMove(start, newX, th, idx, width, minWidth, maxWidth) {
@@ -190,8 +189,7 @@
             
             for (const th of ths) {
                 const metadata = tableApi.getMeta(th);
-                const name = dataModel.getColumnValue(metadata.x);
-                setCustomResizeElement(th, name);
+                setCustomResizeElement(th);
             }
 
             // Iterate over all rendered cells.
