@@ -122,6 +122,10 @@
             th.appendChild(span);
         }
 
+        function toggleCellClip(el) {
+            el.classList.toggle("cell-clip", el.offsetWidth < el.scrollWidth);
+        }
+
         async function onColumnMove(start, newX, th, idx, width, minWidth, maxWidth) {
             const diff = newX - start;
             const override_width = Math.min(maxWidth, Math.max(minWidth, width + diff));
@@ -129,12 +133,15 @@
             th.style.minWidth = override_width + "px";
             th.style.maxWidth = override_width + "px";
 
+            toggleCellClip(th);
+
             const tds = tableApi.querySelectorAll("thead th, tbody td");
             for (const td of tds) {
                 const tdMetadata = tableApi.getMeta(td);
                 if (idx === tdMetadata.x) {
                     td.style.minWidth = override_width + "px";
                     td.style.maxWidth = override_width + "px";
+                    toggleCellClip(td);
                 }
             }
         }
@@ -252,7 +259,7 @@
             user-select: none;
         }
         /* Do not allow content to overflow cell limit. */
-        tr th, tr td {
+        .cell-clip {
             overflow: hidden;
             text-overflow: ellipsis;
         }
