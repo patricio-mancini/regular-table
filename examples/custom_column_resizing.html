@@ -97,14 +97,14 @@
         const tableApi = document.getElementsByTagName("regular-table")[0];
 
         // Clear previous cell manipulations done by this api.
-        function clear(cellElement) {
-            cellElement.classList.remove("small", "medium", "large");
+        function clearClasses(element) {
+            element.classList.remove("small", "medium", "large");
         }
 
         // Add class to cell element.
-        function setClass(cellElement) {
-            const metadata = tableApi.getMeta(cellElement);
-            const name = dataModel.getColumnKey(metadata.x);
+        function setClass(element) {
+            const { x: index } = tableApi.getMeta(element);
+            const name = dataModel.getColumnKey(index);
             let className;
             if (name.includes("Small")) {
                 className = "small";
@@ -113,7 +113,7 @@
             } else if (name.includes("Large")) {
                 className = "large";
             }
-            cellElement.classList.add(className);
+            element.classList.add(className);
         }
 
         function setCustomResizeElement(th) {
@@ -126,21 +126,57 @@
             el.classList.toggle("cell-clip", el.offsetWidth < el.scrollWidth);
         }
 
-        async function onColumnMove(start, newX, th, idx, width, minWidth, maxWidth) {
-            const diff = newX - start;
-            const override_width = Math.min(maxWidth, Math.max(minWidth, width + diff));
+        function getColumnMeasures(element, index) {
+            const columnSize = columnSizes.get(index);
+            let width, minWidth, maxWidth;
+            if (columnSize) {
+                width = columnSize.width;
+                minWidth = columnSize.minWidth;
+                maxWidth = columnSize.maxWidth;
+            } else {
+                element.style.minWidth = "";
+                element.style.maxWidth = "";
+                const computedStyle = window.getComputedStyle(element);
+                width = parseInt(computedStyle.getPropertyValue("width"));
+                minWidth = parseInt(computedStyle.getPropertyValue("min-width"));
+                maxWidth = parseInt(computedStyle.getPropertyValue("max-width"));
+            }
+            return { width, minWidth, maxWidth };
+        }
 
-            th.style.minWidth = override_width + "px";
-            th.style.maxWidth = override_width + "px";
+        function applyCustomWidths(element, width) {
+            element.style.minWidth = width + "px";
+            element.style.maxWidth = width + "px";
+        }
 
+        function calculateNewWidth(startXPos, newXPos, minWidth, maxWidth, currWidth) {
+            const diff = newXPos - startXPos;
+            return Math.min(maxWidth, Math.max(minWidth, currWidth + diff));
+        }
+
+        async function onColumnMove(
+            startXPos,
+            newXPos,
+            th,
+            index,
+            width,
+            minWidth,
+            maxWidth
+        ) {
+            const overrideWidth = calculateNewWidth(
+                startXPos,
+                newXPos,
+                minWidth,
+                maxWidth,
+                width
+            );
+            applyCustomWidths(th, overrideWidth);
             toggleCellClip(th);
-
             const tds = tableApi.querySelectorAll("thead th, tbody td");
             for (const td of tds) {
-                const tdMetadata = tableApi.getMeta(td);
-                if (idx === tdMetadata.x) {
-                    td.style.minWidth = override_width + "px";
-                    td.style.maxWidth = override_width + "px";
+                const { x: tdIndex } = tableApi.getMeta(td);
+                if (index === tdIndex) {
+                    applyCustomWidths(td, overrideWidth);
                     toggleCellClip(td);
                 }
             }
@@ -148,41 +184,29 @@
 
         function onColumnResize(event) {
             const start = event.pageX;
-            const element = event.target.parentElement;
-            const metadata = tableApi.getMeta(element);
+            const th = event.target.parentElement;
+            const { x: index } = tableApi.getMeta(th);
 
-            element.style.minWidth = "";
-            element.style.maxWidth = "";
+            const { width, minWidth, maxWidth } = getColumnMeasures(th, index);
 
-            let width, minWidth, maxWidth;
-
-            const columnSize = columnSizes.get(metadata.x);
-
-            if (columnSize) {
-                width = columnSize.width;
-                minWidth = columnSize.minWidth;
-                maxWidth = columnSize.maxWidth;
-            } else {
-                const elementStyles = window.getComputedStyle(element);
-                width = parseInt(elementStyles.getPropertyValue("width"));
-                minWidth = parseInt(elementStyles.getPropertyValue("min-width"));
-                maxWidth = parseInt(elementStyles.getPropertyValue("max-width"));
-            }
-
-            const move = (event) => onColumnMove(start, event.pageX, element, metadata.x, width, minWidth, maxWidth);
-            const up = async (event) => {
+            const move = ({ pageX }) => onColumnMove(
+                start,
+                pageX,
+                th,
+                index,
+                width,
+                minWidth,
+                maxWidth
+            );
+            const up = async ({ pageX }) => {
                 document.removeEventListener("mousemove", move);
                 document.removeEventListener("mouseup", up);
-
-                const diff = event.pageX - start;
-                const override_width = Math.min(maxWidth, Math.max(minWidth, width + diff));
-
-                columnSizes.set(metadata.x, {
+                const overrideWidth = calculateNewWidth(start, pageX, minWidth, maxWidth, width);
+                columnSizes.set(index, {
                     minWidth,
                     maxWidth,
-                    width: override_width
+                    width: overrideWidth
                 });
-
                 await tableApi.draw();
             };
             document.addEventListener("mousemove", move);
@@ -194,30 +218,17 @@
             const tds = tableApi.querySelectorAll("tbody td");
             
             for (const th of ths) {
-                const metadata = tableApi.getMeta(th);
                 setCustomResizeElement(th);
             }
 
             // Iterate over all rendered cells.
-            for (const cellElement of [...ths, ...tds]) {
-                clear(cellElement);
-                setClass(cellElement);
-
-                const metadata = tableApi.getMeta(cellElement);
-                const columnSize = columnSizes.get(metadata.x);
-
-                if (columnSize) {
-                    width = columnSize.width;
-                    minWidth = columnSize.minWidth;
-                    maxWidth = columnSize.maxWidth;
-                } else {
-                    const elementStyles = window.getComputedStyle(cellElement);
-                    width = parseInt(elementStyles.getPropertyValue("width"));
-                    minWidth = parseInt(elementStyles.getPropertyValue("min-width"));
-                    maxWidth = parseInt(elementStyles.getPropertyValue("max-width"));
-                }
-
-                onColumnMove(0, 0, cellElement, metadata.x, width, minWidth, maxWidth);
+            for (const element of [...ths, ...tds]) {
+                clearClasses(element);
+                setClass(element);
+                const { x: index } = tableApi.getMeta(element);
+                const { width, minWidth, maxWidth } = getColumnMeasures(element, index);
+                onColumnMove(0, 0, element, index, width, minWidth, maxWidth);
+                toggleCellClip(element);
             }
         }
 
