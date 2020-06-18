@@ -96,12 +96,12 @@
         // Get Regular Table element.
         const tableApi = document.getElementsByTagName("regular-table")[0];
 
-        // Clear previous cell manipulations done by this api.
-        function clearClasses(element) {
+        // Remove classes previously added by this api.
+        function removeClasses(element) {
             element.classList.remove("small", "medium", "large");
         }
 
-        // Add class to cell element.
+        // Add class to cell element according its name.
         function setClass(element) {
             const { x: index } = tableApi.getMeta(element);
             const name = dataModel.getColumnKey(index);
@@ -116,16 +116,19 @@
             element.classList.add(className);
         }
 
+        // Create a custom resizing element and append it to an element.
         function setCustomResizeElement(th) {
             const span = document.createElement("span");
             span.classList.add("resize");
             th.appendChild(span);
         }
 
+        // Toggle a class to a cell according to whether its content is overflowed.
         function toggleCellClip(el) {
             el.classList.toggle("cell-clip", el.offsetWidth < el.scrollWidth);
         }
 
+        // Provided an index, get column measures either by cache or computed styles.
         function getColumnMeasures(element, index) {
             const columnSize = columnSizes.get(index);
             let width, minWidth, maxWidth;
@@ -144,44 +147,48 @@
             return { width, minWidth, maxWidth };
         }
 
-        function applyCustomWidths(element, width) {
+        function resizeCell(element, width) {
             element.style.minWidth = width + "px";
             element.style.maxWidth = width + "px";
         }
 
-        function calculateNewWidth(startXPos, newXPos, minWidth, maxWidth, currWidth) {
-            const diff = newXPos - startXPos;
+        // Calculate new column width using mouse x-axis coordinates.
+        function calcOverrideWidth(startPos, newPos, minWidth, maxWidth, currWidth) {
+            const diff = newPos - startPos;
             return Math.min(maxWidth, Math.max(minWidth, currWidth + diff));
         }
 
+        // When dragging mouse over a column resize span, calculate and apply new widths.
         async function onColumnMove(
-            startXPos,
-            newXPos,
+            startPos,
+            newPos,
             th,
             index,
             width,
             minWidth,
             maxWidth
         ) {
-            const overrideWidth = calculateNewWidth(
-                startXPos,
-                newXPos,
+            const overrideWidth = calcOverrideWidth(
+                startPos,
+                newPos,
                 minWidth,
                 maxWidth,
                 width
             );
-            applyCustomWidths(th, overrideWidth);
+            resizeCell(th, overrideWidth);
             toggleCellClip(th);
-            const tds = tableApi.querySelectorAll("thead th, tbody td");
+            const tds = tableApi.querySelectorAll("table tbody td");
             for (const td of tds) {
                 const { x: tdIndex } = tableApi.getMeta(td);
                 if (index === tdIndex) {
-                    applyCustomWidths(td, overrideWidth);
+                    resizeCell(td, overrideWidth);
                     toggleCellClip(td);
                 }
             }
         }
 
+        // When user click on resize element, start tracking mouse movements
+        // in order to calculate and apply new column widths.
         function onColumnResize(event) {
             const start = event.pageX;
             const th = event.target.parentElement;
@@ -201,7 +208,7 @@
             const up = async ({ pageX }) => {
                 document.removeEventListener("mousemove", move);
                 document.removeEventListener("mouseup", up);
-                const overrideWidth = calculateNewWidth(start, pageX, minWidth, maxWidth, width);
+                const overrideWidth = calcOverrideWidth(start, pageX, minWidth, maxWidth, width);
                 columnSizes.set(index, {
                     minWidth,
                     maxWidth,
@@ -223,10 +230,11 @@
 
             // Iterate over all rendered cells.
             for (const element of [...ths, ...tds]) {
-                clearClasses(element);
+                removeClasses(element);
                 setClass(element);
                 const { x: index } = tableApi.getMeta(element);
                 const { width, minWidth, maxWidth } = getColumnMeasures(element, index);
+                // Reapply resizing styles.
                 onColumnMove(0, 0, element, index, width, minWidth, maxWidth);
                 toggleCellClip(element);
             }
